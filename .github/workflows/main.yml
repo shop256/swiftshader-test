@@ -7,46 +7,79 @@ on:
 
 jobs:
   build-windows-dll:
-    name: Build (Windows x64)
     runs-on: windows-latest
     env:
-      # control parallelism (optional)
       CMAKE_BUILD_PARALLEL_LEVEL: 4
 
     steps:
-      - name: Checkout repository (with submodules)
+      - name: Checkout (submodules)
         uses: actions/checkout@v4
         with:
           submodules: recursive
           fetch-depth: 0
 
-      - name: Ensure CMake is available
-        run: cmake --version
-
-      - name: Create build dir & configure (x64, Release)
-        working-directory: ${{ github.workspace }}
+      - name: Show runner & tool versions
         run: |
-          mkdir -p build/Windows
-          cmake -S . -B build/Windows -A x64 -DCMAKE_BUILD_TYPE=Release
+          echo "Runner: $RUNNER_OS"
+          cmake --version
+          cl.exe /?
+        shell: powershell
+
+      - name: Configure CMake (x64, Release) and force runtime output dir
+        run: |
+          mkdir -Force build\Windows
+          # Force CMake runtime (DLL) outputs to a single known artifacts folder (works with multi-config generators)
+          cmake -S . -B build\Windows -A x64 `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DCMAKE_RUNTIME_OUTPUT_DIRECTORY=${{ github.workspace }}\artifacts `
+            -DCMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE=${{ github.workspace }}\artifacts
+        shell: powershell
 
       - name: Build vk_swiftshader (Release)
-        run: cmake --build build/Windows --config Release --target vk_swiftshader --parallel
+        run: cmake --build build\Windows --config Release --target vk_swiftshader --parallel
+        shell: powershell
 
-      - name: Gather built DLLs
-        shell: bash
+      - name: (Optional) Run CMake install to staged prefix (copies installable files)
+        run: cmake --install build\Windows --config Release --prefix "${{ github.workspace }}\artifacts"
+        shell: powershell
+        continue-on-error: true
+
+      - name: Debug: list build tree & any DLLs found
         run: |
-          # The project copies the built DLL into build/Windows/ and build/bin/
-          echo "Collecting DLL artifacts..."
-          ls -la build/Windows || true
-          ls -la build/bin || true
-          # Copy relevant files into an artifacts folder
-          mkdir -p artifacts
-          # copy main ICD (vk_swiftshader) and optional vulkan-1 copy if present
-          cp -v build/Windows/*.dll artifacts/ 2>/dev/null || true
-          cp -v build/bin/*.dll artifacts/ 2>/dev/null || true
-          # copy ICD json that CMake generates (useful for testing)
-          cp -v build/Windows/vk_swiftshader_icd.json artifacts/ 2>/dev/null || true
-          ls -la artifacts || true
+          Write-Host "=== build directory tree (first 200 entries) ==="
+          Get-ChildItem -Path build -Recurse -Force -ErrorAction SilentlyContinue | Select-Object -First 200 | ForEach-Object { Write-Host $_.FullName }
+          Write-Host "=== DLLs anywhere under build ==="
+          $dlls = Get-ChildItem -Path build -Recurse -Filter *.dll -File -ErrorAction SilentlyContinue
+          if ($dlls) { $dlls | ForEach-Object { Write-Host $_.FullName } } else { Write-Host "No DLLs found under build." }
+          Write-Host "=== artifacts folder listing ==="
+          if (Test-Path artifacts) { Get-ChildItem -Path artifacts -Recurse -Force | ForEach-Object { Write-Host $_.FullName } } else { Write-Host "artifacts/ does not exist yet." }
+        shell: powershell
+
+      - name: Collect any DLLs (search recursively and copy to artifacts/)
+        run: |
+          New-Item -ItemType Directory -Path artifacts -Force | Out-Null
+          $dlls = Get-ChildItem -Path build -Recurse -Filter *.dll -File -ErrorAction SilentlyContinue
+          if ($dlls) {
+            Write-Host "Copying found DLLs to artifacts/"
+            foreach ($d in $dlls) { Copy-Item -Path $d.FullName -Destination (Join-Path $PWD.Path "artifacts") -Force }
+          } else {
+            Write-Host "No DLLs found under build; trying common bin/release locations..."
+            # try common places that MSVC/CMake might use
+            $candidates = @(
+              "build\Windows\Release\*.dll",
+              "build\Windows\*.dll",
+              "build\bin\*.dll",
+              "build\Windows\vk_swiftshader_icd.json"
+            )
+            foreach ($c in $candidates) {
+              Write-Host "Checking $c"
+              $found = Get-ChildItem -Path $c -ErrorAction SilentlyContinue
+              if ($found) { $found | ForEach-Object { Copy-Item -Path $_.FullName -Destination (Join-Path $PWD.Path "artifacts") -Force } }
+            }
+          }
+          Write-Host "Final artifacts/ listing:"
+          Get-ChildItem -Path artifacts -Recurse -Force | ForEach-Object { Write-Host $_.FullName }
+        shell: powershell
 
       - name: Upload built DLLs as artifact
         uses: actions/upload-artifact@v4
