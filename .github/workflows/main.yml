@@ -44,7 +44,7 @@ jobs:
         shell: powershell
         continue-on-error: true
 
-      - name: Debug: list build tree & any DLLs found
+      - name: Debug, list build tree & any DLLs found
         run: |
           Write-Host "=== build directory tree (first 200 entries) ==="
           Get-ChildItem -Path build -Recurse -Force -ErrorAction SilentlyContinue | Select-Object -First 200 | ForEach-Object { Write-Host $_.FullName }
