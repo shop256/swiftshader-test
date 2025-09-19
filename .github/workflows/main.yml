@@ -1,0 +1,55 @@
+name: Build SwiftShader (Windows DLL)
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-windows-dll:
+    name: Build (Windows x64)
+    runs-on: windows-latest
+    env:
+      # control parallelism (optional)
+      CMAKE_BUILD_PARALLEL_LEVEL: 4
+
+    steps:
+      - name: Checkout repository (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Ensure CMake is available
+        run: cmake --version
+
+      - name: Create build dir & configure (x64, Release)
+        working-directory: ${{ github.workspace }}
+        run: |
+          mkdir -p build/Windows
+          cmake -S . -B build/Windows -A x64 -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build vk_swiftshader (Release)
+        run: cmake --build build/Windows --config Release --target vk_swiftshader --parallel
+
+      - name: Gather built DLLs
+        shell: bash
+        run: |
+          # The project copies the built DLL into build/Windows/ and build/bin/
+          echo "Collecting DLL artifacts..."
+          ls -la build/Windows || true
+          ls -la build/bin || true
+          # Copy relevant files into an artifacts folder
+          mkdir -p artifacts
+          # copy main ICD (vk_swiftshader) and optional vulkan-1 copy if present
+          cp -v build/Windows/*.dll artifacts/ 2>/dev/null || true
+          cp -v build/bin/*.dll artifacts/ 2>/dev/null || true
+          # copy ICD json that CMake generates (useful for testing)
+          cp -v build/Windows/vk_swiftshader_icd.json artifacts/ 2>/dev/null || true
+          ls -la artifacts || true
+
+      - name: Upload built DLLs as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: swiftshader-windows-dlls
+          path: artifacts
