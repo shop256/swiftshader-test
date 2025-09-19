@@ -838,7 +838,7 @@ const VkPhysicalDeviceProperties &PhysicalDevice::getProperties() const
 			DRIVER_VERSION,
 			VENDOR_ID,
 			DEVICE_ID,
-			VK_PHYSICAL_DEVICE_TYPE_CPU,  // deviceType
+			VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU,  // deviceType
 			"",                           // deviceName
 			SWIFTSHADER_UUID,             // pipelineCacheUUID
 			getLimits(),                  // limits
