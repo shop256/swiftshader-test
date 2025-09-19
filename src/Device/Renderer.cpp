@@ -184,12 +184,6 @@ void Renderer::draw(const vk::GraphicsPipeline *pipeline, const vk::DynamicState
                     CountedEvent *events, int instanceID, int layer, void *indexBuffer, const VkRect2D &renderArea,
                     const vk::Pipeline::PushConstantStorage &pushConstants, bool update)
 {
-	if(occlusionQuery)
-    {
-        occlusionQuery->set(0);
-        occlusionQuery->finish();
-    }
-	return;
 	if(count == 0) { return; }
 
 	auto id = nextDrawID++;
