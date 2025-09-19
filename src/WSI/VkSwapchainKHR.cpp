@@ -218,10 +218,8 @@ VkResult SwapchainKHR::present(uint32_t index)
 {
 	auto &image = images[index];
 	image.setStatus(PRESENTING);
-	VkResult result = surface->present(&image);
-
 	releaseImage(index);
-	return result;
+	return VK_SUCCESS;
 }
 
 VkResult SwapchainKHR::releaseImages(uint32_t imageIndexCount, const uint32_t *pImageIndices)
