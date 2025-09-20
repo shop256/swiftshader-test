@@ -46,7 +46,7 @@ const VkPhysicalDeviceFeatures &PhysicalDevice::getFeatures() const
 		VK_FALSE,  // logicOp
 		VK_TRUE,   // multiDrawIndirect
 		VK_TRUE,   // drawIndirectFirstInstance
-		VK_TRUE,   // depthClamp
+		VK_FALSE,   // depthClamp
 		VK_TRUE,   // depthBiasClamp
 		VK_TRUE,   // fillModeNonSolid
 		VK_TRUE,   // depthBounds
@@ -61,7 +61,7 @@ const VkPhysicalDeviceFeatures &PhysicalDevice::getFeatures() const
 #else
 		VK_FALSE,  // textureCompressionASTC_LDR
 #endif
-		VK_TRUE,   // textureCompressionBC
+		VK_FALSE,   // textureCompressionBC
 		VK_TRUE,   // occlusionQueryPrecise
 		VK_FALSE,  // pipelineStatisticsQuery
 		VK_TRUE,   // vertexPipelineStoresAndAtomics
